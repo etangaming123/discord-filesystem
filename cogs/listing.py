@@ -63,7 +63,7 @@ class Filesystem(commands.Cog):
         self.bot = bot
         os.makedirs(FILES_ROOT, exist_ok=True)
 
-    @app_commands.command(name="fs-mkdir", description="Create a directory.")
+    @app_commands.command(name="fs-create-directory", description="Create a directory.")
     @app_commands.describe(path="Directory path to create, e.g. notes/2026")
     async def mkdir(self, interaction: discord.Interaction, path: str):
         if not await handleCommandAccess(interaction, interaction.user.id):
@@ -83,7 +83,7 @@ class Filesystem(commands.Cog):
         os.makedirs(fullpath, exist_ok=True)
         await interaction.response.send_message(content=f"Created directory `files/{os.path.relpath(fullpath, FILES_ROOT)}`.", ephemeral=True)
 
-    @app_commands.command(name="fs-newfile", description="Create a text file via a form.")
+    @app_commands.command(name="fs-create-file", description="Create a text file via a form.")
     @app_commands.describe(path="File path to create, e.g. notes/2026/todo.txt")
     async def newfile(self, interaction: discord.Interaction, path: str):
         if not await handleCommandAccess(interaction, interaction.user.id):
@@ -127,7 +127,7 @@ class Filesystem(commands.Cog):
             await interaction.response.send_message(content="Invalid path.", ephemeral=True)
             return
         if not os.path.isdir(directory):
-            await interaction.response.send_message(content="That directory doesn't exist. Use /fs-mkdir first.", ephemeral=True)
+            await interaction.response.send_message(content="That directory doesn't exist. Use /fs-create-directory first.", ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -172,7 +172,7 @@ class Filesystem(commands.Cog):
         choices = matchChildren(current, includefiles=False, includedirs=True, allowroot=True)
         return [app_commands.Choice(name=label[:100], value=value) for label, value in choices]
 
-    @app_commands.command(name="fs-read", description="Read a file's contents.")
+    @app_commands.command(name="fs-open", description="Open a file's contents.")
     @app_commands.describe(path="File path to read, e.g. notes/2026/todo.txt", public="Whether to send the file publicly or privately (defaults to false)")
     async def read(self, interaction: discord.Interaction, path: str, public: bool = False):
         if not await handleCommandAccess(interaction, interaction.user.id):
@@ -204,6 +204,30 @@ class Filesystem(commands.Cog):
     async def read_autocomplete(self, interaction: discord.Interaction, current: str):
         choices = matchChildren(current, includefiles=True, includedirs=True, allowroot=False)
         return [app_commands.Choice(name=label[:100], value=value) for label, value in choices]
+
+    @app_commands.command(name="fs-delete", description="Delete a file or directory.")
+    @app_commands.describe(path="File or directory path to delete, e.g. notes/2026/todo.txt")
+    async def delete(self, interaction: discord.Interaction, path: str):
+        if not await handleCommandAccess(interaction, interaction.user.id):
+            return
+        if not isPoweruser(interaction.user.id):
+            await interaction.response.send_message(content="You don't have permission to use this command.", ephemeral=True)
+            return
+
+        fullpath = resolvePath(path)
+        if fullpath is None or not os.path.exists(fullpath):
+            await interaction.response.send_message(content="That file or directory doesn't exist.", ephemeral=True)
+            return
+
+        if os.path.isdir(fullpath):
+            try:
+                os.rmdir(fullpath)
+                await interaction.response.send_message(content=f"Deleted directory `files/{os.path.relpath(fullpath, FILES_ROOT)}`.", ephemeral=True)
+            except OSError:
+                await interaction.response.send_message(content="Directory is not empty. Cannot delete.", ephemeral=True)
+        else:
+            os.remove(fullpath)
+            await interaction.response.send_message(content=f"Deleted file `files/{os.path.relpath(fullpath, FILES_ROOT)}`.", ephemeral=True)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Filesystem(bot))
