@@ -1,10 +1,11 @@
 print("Loading modules...")
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 from discord import app_commands
 import os 
 import json
 from git import Repo
+import requests
 repo = Repo(os.curdir)
 
 if not os.path.isdir("files"):
@@ -15,7 +16,22 @@ if not os.path.exists("config.json"):
         json.dump({"token": "your token here", "poweruserid": "your user id here (for certain commands)"}, f, indent=4)
     input("Created config.json with default values. Please edit the file with your bot token and user id, then press enter to continue...")
 
-from common import ensure_datastores, config, handleCommandAccess, setCooldown, getLatestCommitHash, currentcommithash
+from common import ensure_datastores, config, handleCommandAccess, setCooldown
+
+def getLatestCommitHash():
+    try:
+        response = requests.get("https://api.github.com/repos/etangaming123/filesystem/commits/main")
+        if response.status_code == 200:
+            data = response.json()
+            return data['sha'][:7] # Return the first 7 characters of the commit hash
+        else:
+            print(f"Error fetching latest commit: Received status code {response.status_code}")
+            return "unknown"
+    except Exception as e:
+        print(f"Error fetching latest commit: {e}")
+        return "unknown"
+
+currentcommithash = repo.head.object.hexsha[:7]
 
 intents = discord.Intents.default()
 ensure_datastores()
