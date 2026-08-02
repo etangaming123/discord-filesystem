@@ -1,4 +1,5 @@
 import os
+import difflib
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -8,7 +9,7 @@ from common import handleCommandAccess, config
 FILES_ROOT = os.path.join(os.curdir, "files")
 
 def resolvePath(relpath: str):
-    relpath = (relpath or "").strip().strip("/\\")
+    relpath = (relpath or "").replace("\\", "/").strip().strip("/")
     fullpath = os.path.normpath(os.path.join(FILES_ROOT, relpath))
     root = os.path.normpath(FILES_ROOT)
     if fullpath != root and not fullpath.startswith(root + os.sep):
@@ -17,6 +18,34 @@ def resolvePath(relpath: str):
 
 def isPoweruser(userid: int):
     return config.get("poweruserid") is not None and userid == int(config["poweruserid"])
+
+def collectPaths(onlyfiles: bool = False, onlydirs: bool = False):
+    paths = [""] if onlydirs else []
+    for root, dirs, files in os.walk(FILES_ROOT):
+        relroot = os.path.relpath(root, FILES_ROOT)
+        relroot = "" if relroot == "." else relroot.replace(os.sep, "/")
+        if not onlyfiles:
+            for d in dirs:
+                paths.append(f"{relroot}/{d}" if relroot else d)
+        if not onlydirs:
+            for f in files:
+                paths.append(f"{relroot}/{f}" if relroot else f)
+    return paths
+
+def matchPaths(current: str, paths):
+    if not current:
+        return sorted(paths)[:25]
+    lower_current = current.lower()
+    substring_matches = sorted(p for p in paths if lower_current in p.lower())
+    close_matches = difflib.get_close_matches(lower_current, [p.lower() for p in paths], n=25, cutoff=0.6)
+    lower_to_path = {p.lower(): p for p in paths}
+    seen = set(substring_matches)
+    for lower_path in close_matches:
+        p = lower_to_path[lower_path]
+        if p not in seen:
+            seen.add(p)
+            substring_matches.append(p)
+    return substring_matches[:25]
 
 class Filesystem(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -127,6 +156,11 @@ class Filesystem(commands.Cog):
         header = "files/" if relpath == "." else f"files/{relpath}/"
         await interaction.response.send_message(content=f"**{header}**\n```\n" + "\n".join(lines) + "\n```", ephemeral=True)
 
+    @list_.autocomplete("path")
+    async def list_autocomplete(self, interaction: discord.Interaction, current: str):
+        paths = matchPaths(current, collectPaths(onlydirs=True))
+        return [app_commands.Choice(name=("files/ (root)" if p == "" else f"files/{p}/")[:25], value=p) for p in paths]
+
     @app_commands.command(name="fs-read", description="Read a file's contents.")
     @app_commands.describe(path="File path to read, e.g. notes/2026/todo.txt", public="Whether to send the file publicly or privately (defaults to false)")
     async def read(self, interaction: discord.Interaction, path: str, public: bool = False):
@@ -154,6 +188,11 @@ class Filesystem(commands.Cog):
             pass
 
         await interaction.edit_original_response(content=f"`files/{relpath}`", attachments=[discord.File(fullpath)])
+
+    @read.autocomplete("path")
+    async def read_autocomplete(self, interaction: discord.Interaction, current: str):
+        paths = matchPaths(current, collectPaths(onlyfiles=True))
+        return [app_commands.Choice(name=f"files/{p}"[:25], value=p) for p in paths]
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Filesystem(bot))
