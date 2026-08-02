@@ -1,5 +1,4 @@
 import os
-import difflib
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -19,33 +18,45 @@ def resolvePath(relpath: str):
 def isPoweruser(userid: int):
     return config.get("poweruserid") is not None and userid == int(config["poweruserid"])
 
-def collectPaths(onlyfiles: bool = False, onlydirs: bool = False):
-    paths = [""] if onlydirs else []
-    for root, dirs, files in os.walk(FILES_ROOT):
-        relroot = os.path.relpath(root, FILES_ROOT)
-        relroot = "" if relroot == "." else relroot.replace(os.sep, "/")
-        if not onlyfiles:
-            for d in dirs:
-                paths.append(f"{relroot}/{d}" if relroot else d)
-        if not onlydirs:
-            for f in files:
-                paths.append(f"{relroot}/{f}" if relroot else f)
-    return paths
+def splitPathInput(current: str):
+    current = (current or "").replace("\\", "/")
+    if "/" in current:
+        prefix, partial = current.rsplit("/", 1)
+    else:
+        prefix, partial = "", current
+    return prefix.strip("/"), partial
 
-def matchPaths(current: str, paths):
-    if not current:
-        return sorted(paths)[:25]
-    lower_current = current.lower()
-    substring_matches = sorted(p for p in paths if lower_current in p.lower())
-    close_matches = difflib.get_close_matches(lower_current, [p.lower() for p in paths], n=25, cutoff=0.6)
-    lower_to_path = {p.lower(): p for p in paths}
-    seen = set(substring_matches)
-    for lower_path in close_matches:
-        p = lower_to_path[lower_path]
-        if p not in seen:
-            seen.add(p)
-            substring_matches.append(p)
-    return substring_matches[:25]
+def listChildren(prefix: str, includefiles: bool = True, includedirs: bool = True):
+    directory = resolvePath(prefix)
+    if directory is None or not os.path.isdir(directory):
+        return []
+    children = []
+    for entry in sorted(os.listdir(directory)):
+        isdir = os.path.isdir(os.path.join(directory, entry))
+        if isdir and not includedirs:
+            continue
+        if not isdir and not includefiles:
+            continue
+        value = f"{prefix}/{entry}" if prefix else entry
+        if isdir:
+            value += "/"
+        children.append((entry, value, isdir))
+    return children
+
+def matchChildren(current: str, includefiles: bool = True, includedirs: bool = True, allowroot: bool = False):
+    prefix, partial = splitPathInput(current)
+    lower_partial = partial.lower()
+    choices = []
+
+    if allowroot and prefix == "" and lower_partial in "root":
+        choices.append(("files/ (root)", ""))
+
+    for name, value, isdir in listChildren(prefix, includefiles, includedirs):
+        if lower_partial in name.lower():
+            label = f"files/{value}"
+            choices.append((label, value))
+
+    return choices[:25]
 
 class Filesystem(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -158,8 +169,8 @@ class Filesystem(commands.Cog):
 
     @list_.autocomplete("path")
     async def list_autocomplete(self, interaction: discord.Interaction, current: str):
-        paths = matchPaths(current, collectPaths(onlydirs=True))
-        return [app_commands.Choice(name=("files/ (root)" if p == "" else f"files/{p}/")[:100], value=p) for p in paths]
+        choices = matchChildren(current, includefiles=False, includedirs=True, allowroot=True)
+        return [app_commands.Choice(name=label[:100], value=value) for label, value in choices]
 
     @app_commands.command(name="fs-read", description="Read a file's contents.")
     @app_commands.describe(path="File path to read, e.g. notes/2026/todo.txt", public="Whether to send the file publicly or privately (defaults to false)")
@@ -191,8 +202,8 @@ class Filesystem(commands.Cog):
 
     @read.autocomplete("path")
     async def read_autocomplete(self, interaction: discord.Interaction, current: str):
-        paths = matchPaths(current, collectPaths(onlyfiles=True))
-        return [app_commands.Choice(name=f"files/{p}"[:100], value=p) for p in paths]
+        choices = matchChildren(current, includefiles=True, includedirs=True, allowroot=False)
+        return [app_commands.Choice(name=label[:100], value=value) for label, value in choices]
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Filesystem(bot))
