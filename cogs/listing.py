@@ -128,8 +128,8 @@ class Filesystem(commands.Cog):
         await interaction.response.send_message(content=f"**{header}**\n```\n" + "\n".join(lines) + "\n```", ephemeral=True)
 
     @app_commands.command(name="fs-read", description="Read a file's contents.")
-    @app_commands.describe(path="File path to read, e.g. notes/2026/todo.txt")
-    async def read(self, interaction: discord.Interaction, path: str):
+    @app_commands.describe(path="File path to read, e.g. notes/2026/todo.txt", public="Whether to send the file publicly or privately (defaults to false)")
+    async def read(self, interaction: discord.Interaction, path: str, public: bool = False):
         if not await handleCommandAccess(interaction, interaction.user.id):
             return
         if not isPoweruser(interaction.user.id):
@@ -141,7 +141,7 @@ class Filesystem(commands.Cog):
             await interaction.response.send_message(content="That file doesn't exist.", ephemeral=True)
             return
 
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer(ephemeral=not public)
         relpath = os.path.relpath(fullpath, FILES_ROOT)
 
         try:

@@ -15,7 +15,7 @@ if not os.path.exists("config.json"):
         json.dump({"token": "your token here", "poweruserid": "your user id here (for certain commands)"}, f, indent=4)
     input("Created config.json with default values. Please edit the file with your bot token and user id, then press enter to continue...")
 
-from common import ensure_datastores, config, handleCommandAccess
+from common import ensure_datastores, config, handleCommandAccess, setCooldown, getLatestCommitHash, currentcommithash
 
 intents = discord.Intents.default()
 ensure_datastores()
@@ -61,5 +61,22 @@ async def ping(interaction: discord.Interaction):
         return
     await interaction.response.defer()
     await interaction.edit_original_response(content=f"Pong! [{round(bot.latency * 1000)}ms]")
+
+@bot.tree.command(name="status", description="Are we running the latest commit?")
+async def status(interaction: discord.Interaction):
+    if not await handleCommandAccess(interaction, interaction.user.id, "status"):
+        return
+    await interaction.response.defer()
+    setCooldown(interaction.user.id, "status", 10)
+    if repo.is_dirty():
+        await interaction.edit_original_response(content="filesystem is running on a modified commit!")
+        return
+    latesthash = getLatestCommitHash()
+    if latesthash == currentcommithash:
+        await interaction.edit_original_response(content=f"filesystem is up to date! Running commit: {currentcommithash}")
+    elif latesthash == "unknown":
+        await interaction.edit_original_response(content=f"filesystem is running commit: {currentcommithash}, we couldn't get the latest commit")
+    else:
+        await interaction.edit_original_response(content=f"filesystem is not up to date. Running commit: {currentcommithash}, latest commit: {latesthash}. Please contact the developer to update the bot!")
 
 bot.run(config['token'])
