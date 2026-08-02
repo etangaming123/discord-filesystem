@@ -1,0 +1,7 @@
+requests
+discord
+bs4
+Pillow
+ast
+io
+GitPython

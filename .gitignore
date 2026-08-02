@@ -1,0 +1,8 @@
+filesystem.code-workspace
+.DS_Store
+.vscode
+.venv
+__pycache__
+*.json
+startfilesystem.bat
+files/
