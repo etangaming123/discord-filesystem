@@ -159,7 +159,7 @@ class Filesystem(commands.Cog):
     @list_.autocomplete("path")
     async def list_autocomplete(self, interaction: discord.Interaction, current: str):
         paths = matchPaths(current, collectPaths(onlydirs=True))
-        return [app_commands.Choice(name=("files/ (root)" if p == "" else f"files/{p}/")[:25], value=p) for p in paths]
+        return [app_commands.Choice(name=("files/ (root)" if p == "" else f"files/{p}/")[:100], value=p) for p in paths]
 
     @app_commands.command(name="fs-read", description="Read a file's contents.")
     @app_commands.describe(path="File path to read, e.g. notes/2026/todo.txt", public="Whether to send the file publicly or privately (defaults to false)")
@@ -192,7 +192,7 @@ class Filesystem(commands.Cog):
     @read.autocomplete("path")
     async def read_autocomplete(self, interaction: discord.Interaction, current: str):
         paths = matchPaths(current, collectPaths(onlyfiles=True))
-        return [app_commands.Choice(name=f"files/{p}"[:25], value=p) for p in paths]
+        return [app_commands.Choice(name=f"files/{p}"[:100], value=p) for p in paths]
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Filesystem(bot))
