@@ -19,7 +19,9 @@ def isPoweruser(userid: int):
     return config.get("poweruserid") is not None and userid == int(config["poweruserid"])
 
 def splitPathInput(current: str):
-    current = (current or "").replace("\\", "/")
+    current = (current or "").replace("\\", "/").strip()
+    if current == "files" or current.startswith("files/"):
+        current = current[len("files"):].lstrip("/")
     if "/" in current:
         prefix, partial = current.rsplit("/", 1)
     else:
@@ -43,13 +45,10 @@ def listChildren(prefix: str, includefiles: bool = True, includedirs: bool = Tru
         children.append((entry, value, isdir))
     return children
 
-def matchChildren(current: str, includefiles: bool = True, includedirs: bool = True, allowroot: bool = False):
+def matchChildren(current: str, includefiles: bool = True, includedirs: bool = True):
     prefix, partial = splitPathInput(current)
     lower_partial = partial.lower()
     choices = []
-
-    if allowroot and prefix == "" and lower_partial in "root":
-        choices.append(("files/ (root)", ""))
 
     for name, value, isdir in listChildren(prefix, includefiles, includedirs):
         if lower_partial in name.lower():
@@ -169,7 +168,7 @@ class Filesystem(commands.Cog):
 
     @list_.autocomplete("path")
     async def list_autocomplete(self, interaction: discord.Interaction, current: str):
-        choices = matchChildren(current, includefiles=False, includedirs=True, allowroot=True)
+        choices = matchChildren(current, includefiles=False, includedirs=True)
         return [app_commands.Choice(name=label[:100], value=value) for label, value in choices]
 
     @app_commands.command(name="fs-open", description="Open a file's contents.")
@@ -202,7 +201,7 @@ class Filesystem(commands.Cog):
 
     @read.autocomplete("path")
     async def read_autocomplete(self, interaction: discord.Interaction, current: str):
-        choices = matchChildren(current, includefiles=True, includedirs=True, allowroot=False)
+        choices = matchChildren(current, includefiles=True, includedirs=True)
         return [app_commands.Choice(name=label[:100], value=value) for label, value in choices]
 
     @app_commands.command(name="fs-delete", description="Delete a file or directory.")
