@@ -4,5 +4,6 @@ filesystem.code-workspace
 .venv
 __pycache__
 *.json
+*.key
 startfilesystem.bat
 files/

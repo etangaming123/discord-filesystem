@@ -2,10 +2,11 @@ print("Loading modules...")
 import discord
 from discord.ext import commands
 from discord import app_commands
-import os 
+import os
 import json
 from git import Repo
 import requests
+import secure_token
 repo = Repo(os.curdir)
 
 if not os.path.isdir("files"):
@@ -35,9 +36,6 @@ currentcommithash = repo.head.object.hexsha[:7]
 
 intents = discord.Intents.default()
 ensure_datastores()
-
-with open('config.json') as f:
-    config = json.load(f)
 
 cogs = ["listing"]
 
@@ -95,4 +93,4 @@ async def status(interaction: discord.Interaction):
     else:
         await interaction.edit_original_response(content=f"filesystem is not up to date. Running commit: {currentcommithash}, latest commit: {latesthash}. Please contact the developer to update the bot!")
 
-bot.run(config['token'])
+bot.run(secure_token.secure_token())

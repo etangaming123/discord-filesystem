@@ -55,3 +55,19 @@ Finally, run the bot with:
 Refresh your Discord client, and press `/` on your keyboard. You should see the bot's commands in the list, and you can start using it!
 
 Do note that the program has to be continuously running for the bot to work. If you close the terminal or stop the program, the bot will go offline and become unusable until you run it again. (Closing the program will keep your files, though!)
+
+## Encryption keys
+
+Your bot token is encrypted at rest in `config.json`, not stored as plain text.
+
+Out of the box, this needs no setup: the first time the bot runs, it generates a `bot_token.key` file next to `main.py` and uses it to encrypt the token in place. As long as that file stays put, the bot keeps working with no further action from you.
+
+If you'd rather keep the key out of a file on disk (e.g. so it's not sitting next to the repo), you can opt into an environment variable instead:
+
+* **Windows:** double-click `setup_encryption_keys.bat`. It generates a key and sets it as a permanent environment variable (`BOT_TOKEN_ENCRYPTION_KEY`) for your user account. Close and reopen your terminal (or just restart the bot) afterwards.
+* **macOS/Linux:** run `python generate_env_keys.py`, then paste the printed `export BOT_TOKEN_ENCRYPTION_KEY="..."` line into your shell profile (`~/.zshrc`, `~/.bashrc`, etc.) and restart your shell.
+
+If a token was already encrypted under the file key before you set the environment variable, it's automatically re-encrypted under the new key the next time the bot starts — no manual migration needed.
+
+> [!WARNING]
+> If you lose the encryption key (the `bot_token.key` file, or the environment variable's value), the stored token can't be recovered. You'll need to reset your bot's token in the Discord Developer Portal and reconfigure `config.json`.

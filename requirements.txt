@@ -5,3 +5,4 @@ Pillow
 ast
 io
 GitPython
+cryptography
